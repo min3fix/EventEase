@@ -87,62 +87,59 @@ $error = "";
 
 // Handle form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Check which form was submitted
     $form_type = $_POST['form_type'] ?? '';
 
     if ($form_type === 'register') {
-    $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_SPECIAL_CHARS);
-    $name = filter_input(INPUT_POST, 'fullname', FILTER_SANITIZE_SPECIAL_CHARS);
-    $email = $_POST['email'];
-    $sanitized_email = filter_var($email, FILTER_SANITIZE_EMAIL);
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $role = $_POST['role'];
+        $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_SPECIAL_CHARS);
+        $name = filter_input(INPUT_POST, 'fullname', FILTER_SANITIZE_SPECIAL_CHARS);
+        $email = $_POST['email'];
+        $sanitized_email = filter_var($email, FILTER_SANITIZE_EMAIL);
+        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+        $role = $_POST['role'];
 
-    // Check if username already exists
-    $check_query = "SELECT id FROM users WHERE username = ?";
-    $stmt = mysqli_prepare($conn, $check_query);
-    mysqli_stmt_bind_param($stmt, "s", $username);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_store_result($stmt);
+        // Auto-approve only students
+        $is_approved = ($role === 'student') ? 1 : 0;
 
-    if (mysqli_stmt_num_rows($stmt) > 0) {
-        $error = "Username already taken.";
-        echo "<script>alert('" . addslashes($error) . "');</script>";
-    } else {
-        // Correct use of prepared statement
-        $insert_query = "INSERT INTO users (name, username, email, password, role) VALUES (?, ?, ?, ?, ?)";
-        $stmt = mysqli_prepare($conn, $insert_query);
+        // Check if username already exists
+        $check_query = "SELECT id FROM users WHERE username = ?";
+        $stmt = mysqli_prepare($conn, $check_query);
+        mysqli_stmt_bind_param($stmt, "s", $username);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_store_result($stmt);
 
-        if (!$stmt) {
-            $error = "Prepare failed: " . mysqli_error($conn);
-        } 
-        else {
-            mysqli_stmt_bind_param($stmt, "sssss",$name, $username, $sanitized_email, $password, $role);
+        if (mysqli_stmt_num_rows($stmt) > 0) {
+            $error = "Username already taken.";
+            echo "<script>alert('" . addslashes($error) . "');</script>";
+        } else {
+            $insert_query = "INSERT INTO users (name, username, email, password, role, is_approved) VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = mysqli_prepare($conn, $insert_query);
 
-            if (mysqli_stmt_execute($stmt)) {
-                $success = "Registration successful! You can now <a href='login.php'>login</a>.";
-                $_SESSION['user_id'] = $user_id;
-                $_SESSION['username'] = $username;
-                $_SESSION['role'] = $role;
-                if ($role === 'manager') {
-                header("Location: manager.php");
+            if (!$stmt) {
+                $error = "Prepare failed: " . mysqli_error($conn);
             } else {
-                header("Location: student_dashboard.php");
+                mysqli_stmt_bind_param($stmt, "sssssi", $name, $username, $sanitized_email, $password, $role, $is_approved);
+
+                if (mysqli_stmt_execute($stmt)) {
+                    $user_id = mysqli_insert_id($conn);
+                    $_SESSION['user_id'] = $user_id;
+                    $_SESSION['username'] = $username;
+                    $_SESSION['role'] = $role;
+                    $_SESSION['is_approved'] = $is_approved;
+
+                    header("Location: student.php"); // Everyone lands here first
+                    exit();
+                } else {
+                    $error = "Execute failed: " . mysqli_error($conn);
+                }
             }
-            exit(); // Always call exit after a header redirect
-            } else {
-                $error = "Execute failed: " . mysqli_error($conn);
-            }
-        }
         }
     }
-     elseif ($form_type === 'login') {
-        // Login logic
+
+    elseif ($form_type === 'login') {
         $username = $_POST['username'];
-        // $sanitized_email = filter_var($email, FILTER_SANITIZE_EMAIL);
         $password = $_POST['password'];
 
-        $query = "SELECT id, username, password, role FROM users WHERE username = ?";
+        $query = "SELECT id, username, password, role, is_approved FROM users WHERE username = ?";
         $stmt = mysqli_prepare($conn, $query);
         mysqli_stmt_bind_param($stmt, "s", $username);
         mysqli_stmt_execute($stmt);
@@ -150,25 +147,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if ($row = mysqli_fetch_assoc($result)) {
             if (password_verify($password, $row['password'])) {
-                // Start session and set user info
                 session_start();
                 $_SESSION['user_id'] = $row['id'];
                 $_SESSION['username'] = $row['username'];
                 $_SESSION['role'] = $row['role'];
-                // Redirect to dashboard or appropriate page
-            if ($row['role'] === 'manager') {
-                header("Location: manager.php");
-            } else {
-                header("Location: student_dashboard.php");
-            }
-            exit(); // Always call exit after a header redirect
+                $_SESSION['is_approved'] = $row['is_approved'];
+
+                // Check approval status
+                if ($row['is_approved'] == 0) {
+                    // Not approved — limit to student.php
+                    header("Location: student.php");
+                } else {
+                    // Approved — redirect based on role
+                    if ($row['role'] === 'manager') {
+                        header("Location: manager.php");
+                    } elseif ($row['role'] === 'admin') {
+                        header("Location: admin.php");
                     } else {
-                        $error = "Incorrect password.";
-                        echo $error;
+                        header("Location: student.php");
                     }
+                }
+                exit();
+            } else {
+                echo "Incorrect password.";
+            }
         } else {
-            $error = "No user found with that email.";
-            echo $error;
+            echo "No user found with that username.";
         }
     }
 }

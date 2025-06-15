@@ -4,7 +4,8 @@ include("connection.php");
 session_start();
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'manager') {
     // Redirect to login page or show unauthorized message
-    header("Location: login.php");
+    header("Location: register.php?form=login");
+    echo "You are not authorized to access this page, login first";
     exit();
 }
 $query = "SELECT events.*, users.username, users.name AS host_name FROM events 
@@ -48,8 +49,8 @@ $result = mysqli_query($conn, $query);
                 <p><strong>Venue:</strong> <?php echo htmlspecialchars($row['venue']); ?></p>
                 <p><?php echo nl2br(htmlspecialchars($row['description'])); ?></p>
                 <p><em>Posted by <?php echo htmlspecialchars($row['host_name']); ?></em></p>
-                <form method="get" action="register.php">
-                <input type="hidden" name="form" value="login">
+                <form method="get" action="event-details.php">
+                <input type="hidden" name="event_id" value="<?php echo htmlspecialchars($row['event_id']); ?>">
                 <div class="button-row">
                     <button type="submit">View Event</button>
                 </div>
@@ -79,7 +80,7 @@ $result = mysqli_query($conn, $query);
           <option value="" disabled selected>Select Event Type</option>
           <option value="online">Online</option>
           <option value="On Site">On Site</option>
-          <option value="Hybrid">On Site</option>
+          <option value="Hybrid">Hybrid</option>
         <input type="date" placeholder="Event Date" name="event_date" required>
         <input type="text" placeholder="Venue" name="venue" required>
         <label for="event_image">Upload Event Photo:</label>

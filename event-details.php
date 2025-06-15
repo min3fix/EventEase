@@ -44,6 +44,7 @@ $row = $result->fetch_assoc();
     <div class="event-details">
     <p><strong>Date:</strong> <?php echo date("F j, Y", strtotime($row['date'])); ?></p>
     <p><strong>Venue:</strong> <?php echo htmlspecialchars($row['venue']); ?></p>
+    <p><strong>Type:</strong> <?php echo htmlspecialchars($row['type']); ?></p>
     <p><em>Posted by <?php echo htmlspecialchars($row['host_name']); ?></em></p>
     <form action = "" method= "post">
     <div class="reg-buttons">
