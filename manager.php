@@ -30,7 +30,7 @@ $result = mysqli_query($conn, $query);
     <button id="btn-upcoming" class="active" onclick="showContent('upcoming')">Upcoming Events</button>
     <button id="btn-pending" onclick="showContent('pending')">Pending Events</button>
     <button id="btn-new" onclick="showContent('new')">New Event</button>
-    <button id="btn-analytics" onclick="showContent('analytics')">Analytics</button>
+    <!-- <button id="btn-analytics" onclick="showContent('analytics')">Analytics</button> -->
     <button onclick="logout()">Log Out</button>
   </aside>
 
@@ -94,12 +94,12 @@ $result = mysqli_query($conn, $query);
     </div>
     </div>
 
-    <div id="analytics" class="content-section">
+    <!-- <div id="analytics" class="content-section">
     <div class="content-box">
       <h2>Analytics</h2>
       <p>Graphs and stats about events.</p>
     </div>
-    </div>
+    </div> -->
   </main>
 </div>
 
