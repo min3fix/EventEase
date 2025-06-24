@@ -1,6 +1,10 @@
 <?php
+include('header.php');
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 include('connection.php');
-session_start();
+
 $query = "SELECT events.*, users.username, users.name AS host_name FROM events 
           JOIN users ON events.user_id = users.id 
           WHERE date >= CURDATE() 
@@ -17,18 +21,6 @@ $result = mysqli_query($conn, $query);
     <link rel="stylesheet"  href="style.css">
 </head>
 <body>
-
-<header>
-    <div class="logo">
-        <a href="index.php"><img src="EventEase.png" alt="EventEase Logo" class="logo-img"></a>
-    </div>
-    <nav>
-        <a href="register.php?form=login">Login</a>
-        <a href="register.php?form=register">Register</a>
-        <a href="#contact">Contact</a>
-        <a href="events.php">Browse Events</a>
-    </nav>
-</header>
 
 <section class="hero">
     <div class="event">

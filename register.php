@@ -1,7 +1,9 @@
 <?php
-   include("header.html");
+   include("header.php");
    include("connection.php");
-   session_start();
+   if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 ?>
 <!DOCTYPE html>
@@ -45,6 +47,12 @@
             <input type="text" name="username" placeholder="Username" required>
             <input type="password" name="password" placeholder="Password" required>
             <input type="hidden" name="form_type" value="login">
+            <div class="checkbox-wrapper">
+                <label for="remember_me">
+                    <input type="checkbox" name="remember_me" id="remember_me">
+                    <span>Remember me</span>
+                </label>
+            </div>
             <button type="submit">Login</button>
         </form>
 
@@ -147,11 +155,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if ($row = mysqli_fetch_assoc($result)) {
             if (password_verify($password, $row['password'])) {
-                session_start();
+                // session_start();
                 $_SESSION['user_id'] = $row['id'];
                 $_SESSION['username'] = $row['username'];
                 $_SESSION['role'] = $row['role'];
                 $_SESSION['is_approved'] = $row['is_approved'];
+
+                // If "Remember Me" was checked:
+                if (isset($_POST['remember_me'])) {
+                    setcookie("remember_user", $_SESSION['user_id'], time() + (30 * 24 * 60 * 60), "/"); // 30 days
+                    setcookie("remember_role", $_SESSION['role'], time() + (30 * 24 * 60 * 60), "/");
+                }
 
                 // Check approval status
                 if ($row['is_approved'] == 0) {

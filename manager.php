@@ -1,7 +1,13 @@
 <?php
-include("header.html");
+include("header.php");
 include("connection.php");
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_user'], $_COOKIE['remember_role'])) {
+    $_SESSION['user_id'] = $_COOKIE['remember_user'];
+    $_SESSION['role'] = $_COOKIE['remember_role'];
+}
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'manager') {
     // Redirect to login page or show unauthorized message
     header("Location: register.php?form=login");
@@ -10,10 +16,17 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'manager') {
 }
 $query = "SELECT events.*, users.username, users.name AS host_name FROM events 
           JOIN users ON events.user_id = users.id 
-          WHERE date >= CURDATE() 
-          ORDER BY date ASC";
+          WHERE events.date >= CURDATE() AND events.is_approved = 1
+          ORDER BY events.date ASC";
 
 $result = mysqli_query($conn, $query);
+$pending_query = "SELECT events.*, users.username, users.name AS host_name 
+                  FROM events 
+                  JOIN users ON events.user_id = users.id 
+                  WHERE events.is_approved = 0
+                  ORDER BY events.date ASC";
+
+$pending_result = mysqli_query($conn, $pending_query);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -24,6 +37,23 @@ $result = mysqli_query($conn, $query);
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <?php
+// Fetch the manager's name and optionally a profile picture
+$manager_id = $_SESSION['user_id'];
+$manager_query = "SELECT name FROM users WHERE id = ?";
+$stmt = $conn->prepare($manager_query);
+$stmt->bind_param("i", $manager_id);
+$stmt->execute();
+$result_manager = $stmt->get_result();
+$manager = $result_manager->fetch_assoc();
+$manager_name = $manager['name'];
+?>
+<div class="dashboard-header">
+    <div class="profile-info">
+        <img src="profile.png" alt="Profile" class="profile-icon"> <!-- Use your own icon -->
+        <span>Welcome, <?php echo htmlspecialchars($manager_name); ?>!</span>
+    </div>
+</div>
 
 <div class="dashboard-container">  
     <aside>
@@ -31,7 +61,9 @@ $result = mysqli_query($conn, $query);
     <button id="btn-pending" onclick="showContent('pending')">Pending Events</button>
     <button id="btn-new" onclick="showContent('new')">New Event</button>
     <!-- <button id="btn-analytics" onclick="showContent('analytics')">Analytics</button> -->
-    <button onclick="logout()">Log Out</button>
+            <form action="logout.php" method="post">
+        <button type="submit" class="logout-btn">Log Out</button>
+        </form>
   </aside>
 
   <main>
@@ -62,12 +94,34 @@ $result = mysqli_query($conn, $query);
     </div>
     </div>
 
-    <div id="pending" class="content-section">
-    <div class="content-box">
-      <h2>Pending Events</h2>
-      <p>Events waiting for approval from admin.</p>
-    </div>
-    </div>
+<div id="pending" class="content-section">
+  <h2>Pending Events</h2>
+    <p>Events waiting for approval from admin.</p>
+  <div class="content-box">
+    
+
+    <?php while ($row = mysqli_fetch_assoc($pending_result)) : ?>
+      <div class="event-card">
+          <?php if (!empty($row['image'])): ?>
+              <img src="data:image/jpeg;base64,<?php echo base64_encode($row['image']); ?>" 
+                   alt="Event Image" style="max-width: 300px; height: auto;">
+          <?php endif; ?>
+          <h2><?php echo htmlspecialchars($row['name']); ?></h2>
+          <p><strong>Date:</strong> <?php echo date("F j, Y", strtotime($row['date'])); ?></p>
+          <p><strong>Venue:</strong> <?php echo htmlspecialchars($row['venue']); ?></p>
+          <p><?php echo nl2br(htmlspecialchars($row['description'])); ?></p>
+          <p><em>Posted by <?php echo htmlspecialchars($row['host_name']); ?></em></p>
+          
+          <form method="get" action="event-details.php">
+              <input type="hidden" name="event_id" value="<?php echo htmlspecialchars($row['event_id']); ?>">
+              <div class="button-row">
+                  <button type="submit">View Event</button>
+              </div>
+          </form>
+      </div>
+    <?php endwhile; ?>
+  </div>
+</div>
 
     <div id="new" class="content-section">
     <div class="content-box">
